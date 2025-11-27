@@ -29,15 +29,15 @@ JSnake renders using ANSI escape codes and handles raw keyboard input on both Li
 
 | Key | Action |
 |-----|--------|
-| **W** | Up |
-| **A** | Left |
-| **S** | Down |
-| **D** | Right |
-| **Q** | Quit |
+| **w** | Up |
+| **a** | Left |
+| **s** | Down |
+| **d** | Right |
+| **q** | Quit |
 
 ---
 
-## 🛠️ Build & Run
+## Build & Run
 
 ### Linux
 ```sh
