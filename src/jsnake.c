@@ -29,6 +29,7 @@ void enable_raw_mode()
 
 void disable_raw_mode()
 {
+    printf("\033[?25h\033[0m");
 }
 
 #else
@@ -60,6 +61,7 @@ void enable_raw_mode()
 void disable_raw_mode()
 {
     system("stty sane");
+    printf("\033[?25h\033[0m");
 }
 
 static int kbhit(void)
