@@ -1,9 +1,89 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <conio.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef _WIN32
+
+#include <conio.h>
 #include <windows.h>
+
+void get_terminal_size(int *rows, int *cols)
+{
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+    {
+        *cols = csbi.srWindow.Right - csbi.srWindow.Left;
+        *rows = csbi.srWindow.Bottom - csbi.srWindow.Top - 3;
+    }
+    else
+    {
+        *cols = 0;
+        *rows = 0;
+    }
+}
+
+void enable_raw_mode()
+{
+}
+
+void disable_raw_mode()
+{
+}
+
+#else
+
+#include <sys/select.h>
+#include <sys/ioctl.h>
+
+void get_terminal_size(int *rows, int *cols)
+{
+    struct winsize w;
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1)
+    {
+        *cols = 0;
+        *rows = 0;
+    }
+    else
+    {
+        *rows = w.ws_row - 3;
+        *cols = w.ws_col;
+    }
+}
+
+void enable_raw_mode()
+{
+    system("stty -icanon -echo -icrnl -ixon opost min 1 time 0");
+}
+
+void disable_raw_mode()
+{
+    system("stty sane");
+}
+
+static int kbhit(void)
+{
+    struct timeval tv = {0L, 0L};
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(STDIN_FILENO, &fds);
+    int r = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+    if (r > 0)
+        return 1;
+    return 0;
+}
+
+int _getch()
+{
+    unsigned char c;
+    ssize_t n = read(STDIN_FILENO, &c, 1);
+    if (n <= 0)
+        return -1;
+    return (int)c;
+}
+
+#endif
 
 typedef struct
 {
@@ -243,8 +323,10 @@ void display_buffer(char *buffer, char *temp_buffer, int rows, int cols, int sco
 void game_over(int rows, int cols, snake *s)
 {
     printf("\033[1;30;41m\033[%d;%dHGAME OVER: Score = %d\033[0m", rows / 2, cols / 2 - 10, s->score);
-    getch();
+    fflush(stdout);
+    _getch();
     printf("\033[2J");
+    fflush(stdout);
 }
 
 void init_ball(ball *b)
@@ -269,22 +351,21 @@ void welcome_screen(int rows, int cols)
     printf("\033[%d;0H\033[3;31mJyotismoyKalita", indy + 1);
     printf("\033[%d;0H\033[23;31mW,A,S,D - Controls | q - quit", indy + 2);
     printf("\033[%d;0H\033[31mBonus Ball: Invincible for 5 non-linear collisions", indy + 3);
-    getch();
+    fflush(stdout);
+    _getch();
     printf("\033[0m\033[0;0H\033[2J");
+    fflush(stdout);
 }
 
 int main(int argc, char *argv[])
 {
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
     srand(time(0));
+    enable_raw_mode();
+    atexit(disable_raw_mode);
     int rows, cols;
     if (argc <= 1)
     {
-        if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
-        {
-            cols = csbi.srWindow.Right - csbi.srWindow.Left;
-            rows = csbi.srWindow.Bottom - csbi.srWindow.Top - 3;
-        }
+        get_terminal_size(&rows, &cols);
     }
     else
     {
@@ -308,7 +389,7 @@ int main(int argc, char *argv[])
     init_snake(&s, rows, cols);
     init_ball(&b);
     generate_ball(temp_buffer, &b, rows, cols);
-    getch();
+    _getch();
     while (exit)
     {
         exit = handle_input(&s);
